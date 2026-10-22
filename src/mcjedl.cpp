@@ -878,13 +878,15 @@ void run(int argc, char* argv[]) {
         totalSize += value.size;
         downloader.AddTask(url, Object, value.size, value.hash);
     }
-    fs::path Logging = fs::path(".minecraft/assets/log_configs") / vd.logging.client.file.id;
-    fs::create_directories(Logging.parent_path());
-    if (!check_local_file(Logging, vd.logging.client.file.size, vd.logging.client.file.sha1)) {
-        ++fileCount;
-        totalSize += vd.logging.client.file.size;
-        downloader.AddTask(vd.logging.client.file.url, Logging,
-                vd.logging.client.file.size, vd.logging.client.file.sha1);
+    if (!vd.logging.client.file.id.empty() && !vd.logging.client.file.url.empty()) {
+        fs::path Logging = fs::path(".minecraft/assets/log_configs") / vd.logging.client.file.id;
+        fs::create_directories(Logging.parent_path());
+        if (!check_local_file(Logging, vd.logging.client.file.size, vd.logging.client.file.sha1)) {
+            ++fileCount;
+            totalSize += vd.logging.client.file.size;
+            downloader.AddTask(vd.logging.client.file.url, Logging,
+                    vd.logging.client.file.size, vd.logging.client.file.sha1);
+        }
     }
     std::cout << "已发现 " << fileCount << " 个文件，总大小 " << formatBytes(totalSize) << "\n" << std::endl; 
 
