@@ -307,7 +307,7 @@ private:
 public:
 
     CurlMulti() : multi(nullptr), callback_(nullptr), 
-            transmitted_fileCount(0), transmitted_size(0), extra_data(nullptr), it_(nullptr) {
+            transmitted_fileCount(0), transmitted_size(0), extra_data(nullptr) {
         multi = curl_multi_init();
         if (!multi) {
             throw std::runtime_error("Can't initialize curl_multi!");
