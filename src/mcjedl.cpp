@@ -753,9 +753,26 @@ std::string formatBytes(std::uint64_t bytes, int precision = 2) {
 }
 
 void report_download_progress(int n, std::size_t size, std::size_t* p_totalSize) {
+    using Clock = std::chrono::steady_clock;
+
+    static std::size_t last_size = 0;
+    static Clock::time_point last = Clock::now();
+
+    auto now = Clock::now();
+    auto elapsed = now - last;
+
+    if (elapsed < std::chrono::seconds(1) && size != *p_totalSize)
+        return;
+
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
+
     std::cout << "\r正在下载……\t已下载 " << n << " 个文件，进度 " 
               << std::fixed << std::setprecision(2) << 100.0 * size / *p_totalSize
-              << "%" << std::defaultfloat;
+              << "%\t" << formatBytes((size - last_size) * 1000 / ms) 
+              << "/s" << std::defaultfloat << std::flush;
+
+    last_size = size;
+    last = now;
 }
 
 void run(int argc, char* argv[]) {
