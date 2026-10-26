@@ -768,8 +768,8 @@ void report_download_progress(int n, std::size_t size, std::size_t* p_totalSize)
 
     std::cout << "\r正在下载……\t已下载 " << n << " 个文件，进度 " 
               << std::fixed << std::setprecision(2) << 100.0 * size / *p_totalSize
-              << "%\t" << formatBytes((size - last_size) * 1000 / ms) 
-              << "/s" << std::defaultfloat << std::flush;
+              << "%\t" << std::right << std::setw(12) << formatBytes((size - last_size) * 1000 / ms) 
+              << std::left << "/s" << std::defaultfloat << std::flush;
 
     last_size = size;
     last = now;
