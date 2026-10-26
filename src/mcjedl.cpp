@@ -246,6 +246,7 @@ private:
             std::unique_ptr<std::ostream> stream = nullptr, 
                 TaskHandle t = {nullptr}) : CurlEasy(s, std::move(stream)), TaskHandle{t.p}, retry_count(0) {}
         int retry_count;
+        std::unordered_map<fs::path, TaskInfo>::iterator it_;
     };
     std::vector<std::unique_ptr<EasyTaskWrapper>> easy;
     int transmitted_fileCount;
@@ -253,16 +254,19 @@ private:
     std::size_t* extra_data;
     std::unordered_map<fs::path, TaskInfo>::iterator it_;
     
-    void Prepare(EasyTaskWrapper* e) {
+    void Prepare(EasyTaskWrapper* e, bool is_retrying = false) {
         e->sha.Reset();
         e->transmitted_size = 0;
-        e->p = &it_->second;
-        e->SetURL(it_->second.url);
+        if (!is_retrying) {
+            e->it_ = it_;
+        }
+        e->p = &e->it_->second;
+        e->SetURL(e->it_->second.url);
         if (e->f == nullptr) {
             e->f = std::make_unique<std::ofstream>();
         }
         auto& ofs = dynamic_cast<std::ofstream&>(*e->f.get());
-        auto parent = it_->first.parent_path();
+        auto parent = e->it_->first.parent_path();
         if (!parent.empty()) {
             std::error_code ec;
             fs::create_directories(parent, ec);
@@ -271,9 +275,9 @@ private:
             }
         }
         ofs.clear();
-        ofs.open(it_->first, std::ios::binary);
+        ofs.open(e->it_->first, std::ios::binary);
         if (!ofs.is_open()) {
-            throw std::runtime_error("Can't open local file for writing: " + it_->first.string());
+            throw std::runtime_error("Can't open local file for writing: " + e->it_->first.string());
         } 
         CURLMcode mc = curl_multi_add_handle(multi, e->curl);
         if (mc != CURLM_OK) {
@@ -374,7 +378,7 @@ public:
                 if (msg->msg == CURLMSG_DONE) {               // 5. 收割                    
                     CurlEasy* e;
                     curl_easy_getinfo(msg->easy_handle, CURLINFO_PRIVATE, &e);
-                    EasyTaskWrapper* const etw = dynamic_cast<EasyTaskWarpper*>(e);
+                    EasyTaskWrapper* const etw = dynamic_cast<EasyTaskWrapper*>(e);
                     std::ofstream& ofs = dynamic_cast<std::ofstream&>(*e->f.get());
                     ofs.close();
                     
@@ -382,7 +386,7 @@ public:
                     curl_multi_remove_handle(multi, msg->easy_handle);                    
                     if (result != CURLE_OK || ofs.fail() || !Check(etw)) {
                         if (++etw->retry_count < 3) {
-                            Prepare(etw);
+                            Prepare(etw, true);
                             continue;
                         }
                         throw std::runtime_error(
