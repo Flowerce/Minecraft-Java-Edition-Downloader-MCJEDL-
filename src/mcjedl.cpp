@@ -244,7 +244,8 @@ private:
     public:
         EasyTaskWrapper(const std::string& s = "", 
             std::unique_ptr<std::ostream> stream = nullptr, 
-                TaskHandle t = {nullptr}) : CurlEasy(s, std::move(stream)), TaskHandle{t.p} {}
+                TaskHandle t = {nullptr}) : CurlEasy(s, std::move(stream)), TaskHandle{t.p}, retry_count(0) {}
+        int retry_count;
     };
     std::vector<std::unique_ptr<EasyTaskWrapper>> easy;
     int transmitted_fileCount;
@@ -373,20 +374,22 @@ public:
                 if (msg->msg == CURLMSG_DONE) {               // 5. 收割                    
                     CurlEasy* e;
                     curl_easy_getinfo(msg->easy_handle, CURLINFO_PRIVATE, &e);
+                    EasyTaskWrapper* const etw = dynamic_cast<EasyTaskWarpper*>(e);
+                    std::ofstream& ofs = dynamic_cast<std::ofstream&>(*e->f.get());
+                    ofs.close();
                     
                     CURLcode result = msg->data.result;
                     curl_multi_remove_handle(multi, msg->easy_handle);                    
-                    if (result != CURLE_OK) {
+                    if (result != CURLE_OK || ofs.fail() || !Check(etw)) {
+                        if (++etw->retry_count < 3) {
+                            Prepare(etw);
+                            continue;
+                        }
                         throw std::runtime_error(
                             "Download failed: " + e->url +
                             " (" + curl_easy_strerror(msg->data.result) + ", code " +
                             std::to_string(static_cast<int>(msg->data.result)) + ")");
                     }
-                    if (!Check(dynamic_cast<EasyTaskWrapper*>(e))) {
-                        throw std::runtime_error("File verification failed.");
-                    }
-                    std::ofstream& ofs = dynamic_cast<std::ofstream&>(*e->f.get());
-                    ofs.close();
                     ++transmitted_fileCount;
                     transmitted_size += e->transmitted_size;
                     if (callback_) {
