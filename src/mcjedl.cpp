@@ -261,6 +261,8 @@ private:
         e->transmitted_size = 0;
         if (!is_retrying) {
             e->it_ = it_;
+        } else {
+            e->retry_count = 0;
         }
         e->p = &e->it_->second;
         e->SetURL(e->it_->second.url);
