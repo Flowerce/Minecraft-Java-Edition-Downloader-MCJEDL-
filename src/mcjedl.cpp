@@ -388,7 +388,7 @@ public:
                     curl_multi_remove_handle(multi, msg->easy_handle);                    
                     if (result != CURLE_OK || ofs.fail() || !Check(etw)) {
                         if (++etw->retry_count < 3) {
-                            std::this_thread::sleep_for(std::chrono::miliseconds(50));
+                            std::this_thread::sleep_for(std::chrono::milliseconds(50));
                             Prepare(etw, true);
                             continue;
                         }
